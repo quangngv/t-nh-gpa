@@ -31,7 +31,7 @@
     <div id="app">
         <!-- Header sẽ được render tại đây -->
         <header class="bg-gradient-to-r from-red-700 to-red-900 text-white shadow-lg sticky top-0 z-20">
-            <div class="max-w-4xl mx-auto px-4 py-3">
+            <div class="max-w-6xl mx-auto px-4 py-3">
                 <div class="flex items-center justify-between mb-3">
                     <div>
                         <h1 class="text-xl font-bold leading-tight flex items-center">
@@ -39,13 +39,23 @@
                             Tính điểm HUST
                         </h1>
                         <p class="text-xs text-red-100 opacity-90">
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&emsp;Công cụ hỗ trợ sinh viên Bách
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&emsp;Công cụ hỗ trợ
+                            sinh viên Bách
                             Khoa</p>
                     </div>
 
-                    <!-- Quick Stats Display -->
-                    <div class="text-right hidden sm:block" id="header-stats">
-                        <!-- Stats injected by JS -->
+                    <div class="flex items-center gap-3">
+                        <!-- Language Toggle -->
+                        <button onclick="toggleLanguage()" id="lang-toggle"
+                            class="px-3 py-1.5 bg-white/15 hover:bg-white/25 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-white border border-white/20">
+                            <span id="lang-flag">🇻🇳</span>
+                            <span id="lang-label">VI</span>
+                        </button>
+
+                        <!-- Quick Stats Display -->
+                        <div class="text-right hidden sm:block" id="header-stats">
+                            <!-- Stats injected by JS -->
+                        </div>
                     </div>
                 </div>
 
@@ -63,7 +73,7 @@
             </div>
         </header>
 
-        <main class="max-w-4xl mx-auto px-4 py-6 space-y-6" id="main-content">
+        <main class="max-w-6xl mx-auto px-4 py-6 space-y-6" id="main-content">
             <!-- Nội dung chính sẽ được render bởi JS -->
         </main>
 
@@ -75,10 +85,70 @@
     </div>
 
     <script>
+        // --- TRANSLATIONS ---
+        const i18n = {
+            vi: {
+                tabDetail: 'Tính từng môn', tabCumulative: 'Tính CPA các kỳ',
+                quickSingle: 'Tính Nhanh (1 Môn)', quickList: 'Tính Học Kỳ (Nhiều Môn)',
+                enterScores: 'Nhập điểm kiểm tra', ratio: 'Tỷ trọng',
+                midterm: 'Điểm QT', final: 'Điểm CK',
+                expectedResult: 'Kết quả dự tính', enterToSee: 'Nhập điểm quá trình và cuối kỳ để xem kết quả ngay lập tức.',
+                score10: 'Điểm hệ 10', addSubject: 'Thêm môn vào danh sách',
+                subjectName: 'Tên môn học', subjectPh: 'VD: Đại số',
+                credits: 'Số tín chỉ', subjectList: 'Danh sách môn',
+                clearAll: 'Xóa hết', emptyList: 'Nhập điểm quá trình và cuối kỳ để tính GPA.',
+                scale10: 'Hệ 10', letter: 'Chữ', scale4: 'Hệ 4',
+                enterSemester: 'Nhập điểm từng kỳ',
+                semesterInfo: 'Nhập GPA (hệ 4) và Tổng số tín chỉ của từng kỳ học để tính CPA tích lũy chung.',
+                semesterName: 'Tên kỳ học', semesterPh: 'VD: 2023.1',
+                semCredits: 'Số TC của kỳ', semCreditsPh: 'VD: 18',
+                gpa4: 'GPA (Hệ 4)', gpa4Ph: 'VD: 3.25', add: 'Thêm',
+                semesterList: 'Danh sách các kỳ', emptySemester: 'Chưa có dữ liệu kỳ học nào.',
+                gpaSemester: 'GPA Kỳ', totalCredits: 'Tổng Tín Chỉ',
+                cpa10: 'CPA (Hệ 10)', gpaScale4: 'GPA (Hệ 4)',
+                totalAccCredits: 'Tổng Tín Tích Lũy', cpaAcc: 'CPA Tích Lũy (Hệ 4)',
+                gpaExpected: 'GPA Dự kiến', quickCalc: 'Tính Nhanh', checkOne: 'Kiểm tra 1 môn',
+                cpaAcc2: 'CPA Tích lũy', semCreditsLabel: 'Số tín chỉ',
+                defaultSubject: 'Môn', defaultSemester: 'Kỳ',
+                excellent: 'Xuất sắc', good: 'Giỏi', fairlyGood: 'Khá giỏi', fair: 'Khá',
+                avgGood: 'Trung bình khá', avg: 'Trung bình', belowAvg: 'Trung bình yếu', fail: 'Trượt môn',
+                failMid: 'Điểm QT < 3', failFin: 'Điểm CK < 3', failTotal: 'Tổng kết < 4'
+            },
+            en: {
+                tabDetail: 'Per Subject', tabCumulative: 'Cumulative CPA',
+                quickSingle: 'Quick Calc (1 Subject)', quickList: 'Semester (Multiple)',
+                enterScores: 'Enter Scores', ratio: 'Weight Ratio',
+                midterm: 'Midterm', final: 'Final',
+                expectedResult: 'Expected Result', enterToSee: 'Enter midterm and final scores to see results instantly.',
+                score10: 'Score (Scale 10)', addSubject: 'Add Subject',
+                subjectName: 'Subject Name', subjectPh: 'e.g. Algebra',
+                credits: 'Credits', subjectList: 'Subject List',
+                clearAll: 'Clear All', emptyList: 'Enter midterm and final scores to calculate GPA.',
+                scale10: 'Scale 10', letter: 'Grade', scale4: 'Scale 4',
+                enterSemester: 'Enter Semester Data',
+                semesterInfo: 'Enter GPA (scale 4) and total credits for each semester to calculate cumulative CPA.',
+                semesterName: 'Semester', semesterPh: 'e.g. 2023.1',
+                semCredits: 'Credits', semCreditsPh: 'e.g. 18',
+                gpa4: 'GPA (Scale 4)', gpa4Ph: 'e.g. 3.25', add: 'Add',
+                semesterList: 'Semester List', emptySemester: 'No semester data yet.',
+                gpaSemester: 'Sem GPA', totalCredits: 'Total Credits',
+                cpa10: 'CPA (Scale 10)', gpaScale4: 'GPA (Scale 4)',
+                totalAccCredits: 'Total Acc. Credits', cpaAcc: 'Cumulative CPA (Scale 4)',
+                gpaExpected: 'Expected GPA', quickCalc: 'Quick Calc', checkOne: 'Check 1 subject',
+                cpaAcc2: 'Cumulative CPA', semCreditsLabel: 'Credits',
+                defaultSubject: 'Subject', defaultSemester: 'Semester',
+                excellent: 'Excellent', good: 'Good', fairlyGood: 'Fairly Good', fair: 'Fair',
+                avgGood: 'Above Average', avg: 'Average', belowAvg: 'Below Average', fail: 'Failed',
+                failMid: 'Midterm < 3', failFin: 'Final < 3', failTotal: 'Total < 4'
+            }
+        };
+        function t(key) { return i18n[state.language][key] || key; }
+
         // --- STATE MANAGEMENT ---
         const state = {
-            activeTab: 'detail', // 'detail' | 'cumulative'
-            detailMode: 'list', // 'single' | 'list'
+            activeTab: 'detail',
+            detailMode: 'list',
+            language: 'vi',
 
             // Data for Single Mode (Tính Nhanh)
             quickSubject: { credits: 3, midterm: '', final: '', ratio: '0.3-0.7' },
@@ -93,16 +163,16 @@
         // --- UTILS & LOGIC ---
 
         function getGrade(score, isFailed) {
-            if (isFailed) return { letter: 'F', gpa: 0.0, color: 'text-red-600', text: 'Trượt môn' };
-            if (score >= 9.5) return { letter: 'A+', gpa: 4.0, color: 'text-green-600', text: 'Xuất sắc' };
-            if (score >= 8.5) return { letter: 'A', gpa: 4.0, color: 'text-green-600', text: 'Giỏi' };
-            if (score >= 8.0) return { letter: 'B+', gpa: 3.5, color: 'text-blue-600', text: 'Khá giỏi' };
-            if (score >= 7.0) return { letter: 'B', gpa: 3.0, color: 'text-blue-600', text: 'Khá' };
-            if (score >= 6.5) return { letter: 'C+', gpa: 2.5, color: 'text-yellow-600', text: 'Trung bình khá' };
-            if (score >= 5.5) return { letter: 'C', gpa: 2.0, color: 'text-yellow-600', text: 'Trung bình' };
-            if (score >= 5.0) return { letter: 'D+', gpa: 1.5, color: 'text-orange-600', text: 'Trung bình yếu' };
-            if (score >= 4.0) return { letter: 'D', gpa: 1.0, color: 'text-orange-600', text: 'Trung bình yếu' };
-            return { letter: 'F', gpa: 0.0, color: 'text-red-600', text: 'Trượt môn' };
+            if (isFailed) return { letter: 'F', gpa: 0.0, color: 'text-red-600', text: t('fail') };
+            if (score >= 9.5) return { letter: 'A+', gpa: 4.0, color: 'text-green-600', text: t('excellent') };
+            if (score >= 8.5) return { letter: 'A', gpa: 4.0, color: 'text-green-600', text: t('good') };
+            if (score >= 8.0) return { letter: 'B+', gpa: 3.5, color: 'text-blue-600', text: t('fairlyGood') };
+            if (score >= 7.0) return { letter: 'B', gpa: 3.0, color: 'text-blue-600', text: t('fair') };
+            if (score >= 6.5) return { letter: 'C+', gpa: 2.5, color: 'text-yellow-600', text: t('avgGood') };
+            if (score >= 5.5) return { letter: 'C', gpa: 2.0, color: 'text-yellow-600', text: t('avg') };
+            if (score >= 5.0) return { letter: 'D+', gpa: 1.5, color: 'text-orange-600', text: t('belowAvg') };
+            if (score >= 4.0) return { letter: 'D', gpa: 1.0, color: 'text-orange-600', text: t('belowAvg') };
+            return { letter: 'F', gpa: 0.0, color: 'text-red-600', text: t('fail') };
         }
 
         function calculateSubjectResult(sub) {
@@ -118,9 +188,9 @@
 
             // Logic điểm liệt: Tổng < 4 HOẶC Quá trình < 3 HOẶC Cuối kỳ < 3
             let failReason = '';
-            if (mid < 3.0) failReason = 'Điểm QT < 3';
-            else if (fin < 3.0) failReason = 'Điểm CK < 3';
-            else if (score10 < 4.0) failReason = 'Tổng kết < 4';
+            if (mid < 3.0) failReason = t('failMid');
+            else if (fin < 3.0) failReason = t('failFin');
+            else if (score10 < 4.0) failReason = t('failTotal');
 
             const isFailed = !!failReason;
 
@@ -169,12 +239,12 @@
                     const gpa4 = stats.totalCredits ? (stats.totalWeightedGPA / stats.totalCredits).toFixed(2) : '0.00';
                     html = `
                         <div class="text-2xl font-bold">${gpa4} <span class="text-sm font-normal text-red-200">/ 4.0</span></div>
-                        <div class="text-xs text-red-200">GPA Dự kiến</div>
+                        <div class="text-xs text-red-200">${t('gpaExpected')}</div>
                     `;
                 } else {
                     html = `
-                        <div class="text-xl font-bold text-red-100">Tính Nhanh</div>
-                        <div class="text-xs text-red-200">Kiểm tra 1 môn</div>
+                        <div class="text-xl font-bold text-red-100">${t('quickCalc')}</div>
+                        <div class="text-xs text-red-200">${t('checkOne')}</div>
                     `;
                 }
             } else {
@@ -182,7 +252,7 @@
                 const cpa = stats.totalCredits ? (stats.totalWeightedScore / stats.totalCredits).toFixed(2) : '0.00';
                 html = `
                     <div class="text-2xl font-bold">${cpa} <span class="text-sm font-normal text-red-200">/ 4.0</span></div>
-                    <div class="text-xs text-red-200">CPA Tích lũy</div>
+                    <div class="text-xs text-red-200">${t('cpaAcc2')}</div>
                 `;
             }
             container.innerHTML = html;
@@ -198,7 +268,7 @@
             }
             container.classList.remove('hidden');
 
-            let html = '<div class="max-w-4xl mx-auto flex justify-between items-center">';
+            let html = '<div class="max-w-6xl mx-auto flex justify-between items-center">';
 
             if (state.activeTab === 'detail') {
                 const stats = getDetailStats();
@@ -207,17 +277,19 @@
 
                 html += `
                     <div>
-                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Tổng Tín Chỉ</div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">${t('totalCredits')}</div>
                         <div class="text-xl font-bold text-gray-800">${stats.totalCredits}</div>
                     </div>
                     <div class="flex gap-6 sm:gap-12">
                         <div class="text-right">
-                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">CPA (Hệ 10)</div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">${t('cpa10')}</div>
                             <div class="text-xl font-bold text-gray-700">${cpa10}</div>
                         </div>
                         <div class="text-right">
-                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">GPA (Hệ 4)</div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">${t('gpaScale4')}</div>
                             <div class="text-2xl font-black text-red-700">${gpa4}</div>
+                        </div>
+                    </div>
                         </div>
                     </div>
                 `;
@@ -227,11 +299,11 @@
 
                 html += `
                     <div>
-                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Tổng Tín Tích Lũy</div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">${t('totalAccCredits')}</div>
                         <div class="text-xl font-bold text-gray-800">${stats.totalCredits}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">CPA Tích Lũy (Hệ 4)</div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">${t('cpaAcc')}</div>
                         <div class="text-2xl font-black text-red-700">${cpa}</div>
                     </div>
                 `;
@@ -252,10 +324,10 @@
                 <div class="flex justify-center mb-6">
                     <div class="inline-flex bg-gray-200 p-1 rounded-full relative">
                         <button onclick="switchDetailMode('single')" class="relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all flex items-center ${btnSingleClass}">
-                            <i data-lucide="zap" class="w-4 h-4 mr-1.5"></i> Tính Nhanh (1 Môn)
+                            <i data-lucide="zap" class="w-4 h-4 mr-1.5"></i> ${t('quickSingle')}
                         </button>
                         <button onclick="switchDetailMode('list')" class="relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all flex items-center ${btnListClass}">
-                            <i data-lucide="list" class="w-4 h-4 mr-1.5"></i> Tính Học Kỳ (Nhiều Môn)
+                            <i data-lucide="list" class="w-4 h-4 mr-1.5"></i> ${t('quickList')}
                         </button>
                     </div>
                 </div>
@@ -281,11 +353,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
-                        <i data-lucide="zap" class="w-5 h-5 mr-2 text-yellow-500"></i> Nhập điểm kiểm tra
+                        <i data-lucide="zap" class="w-5 h-5 mr-2 text-yellow-500"></i> ${t('enterScores')}
                     </h2>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Tỷ trọng</label>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('ratio')}</label>
                             <select id="q-ratio" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
                                 <option value="0.3-0.7" ${quickSubject.ratio === '0.3-0.7' ? 'selected' : ''}>30% - 70%</option>
                                 <option value="0.4-0.6" ${quickSubject.ratio === '0.4-0.6' ? 'selected' : ''}>40% - 60%</option>
@@ -294,12 +366,12 @@
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Điểm QT</label>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">${t('midterm')}</label>
                                 <input type="number" id="q-midterm" step="0.1" min="0" max="10" placeholder="0-10" value="${quickSubject.midterm}"
                                     class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm font-bold text-gray-700">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Điểm CK</label>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">${t('final')}</label>
                                 <input type="number" id="q-final" step="0.1" min="0" max="10" placeholder="0-10" value="${quickSubject.final}"
                                     class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm font-bold text-gray-700">
                             </div>
@@ -320,7 +392,7 @@
             if (result) {
                 return `
                     <div class="text-center">
-                        <h3 class="text-gray-500 text-sm uppercase tracking-wider mb-2">Kết quả dự tính</h3>
+                        <h3 class="text-gray-500 text-sm uppercase tracking-wider mb-2">${t('expectedResult')}</h3>
                         
                         <div class="inline-flex flex-col items-center justify-center w-32 h-32 rounded-full border-4 mb-4 ${result.isFailed ? 'border-red-100 bg-red-50' : 'border-green-100 bg-green-50'}">
                             <span class="text-4xl font-black ${result.grade.color}">${result.grade.letter}</span>
@@ -336,7 +408,7 @@
                                     <i data-lucide="alert-circle" class="w-3 h-3 mr-1"></i> ${result.failReason}
                                 </div>
                             ` : `
-                                <div class="text-gray-500 text-sm">Điểm hệ 10: <span class="font-bold text-gray-800">${result.score10}</span></div>
+                                <div class="text-gray-500 text-sm">${t('score10')}: <span class="font-bold text-gray-800">${result.score10}</span></div>
                             `}
                         </div>
                     </div>
@@ -345,7 +417,7 @@
                 return `
                     <div class="text-center text-gray-400 py-8">
                         <i data-lucide="zap" class="w-12 h-12 mx-auto mb-2 opacity-20"></i>
-                        <p>Nhập điểm quá trình và cuối kỳ để xem kết quả ngay lập tức.</p>
+                        <p>${t('enterToSee')}</p>
                     </div>
                 `;
             }
@@ -355,15 +427,15 @@
             let html = `
                 <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
-                        <i data-lucide="plus" class="w-5 h-5 mr-2 text-red-600"></i> Thêm môn vào danh sách
+                        <i data-lucide="plus" class="w-5 h-5 mr-2 text-red-600"></i> ${t('addSubject')}
                     </h2>
                     <form onsubmit="handleAddSubject(event)" class="grid grid-cols-1 md:grid-cols-12 gap-4">
                         <div class="md:col-span-3">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Tên môn học</label>
-                            <input type="text" name="name" placeholder="VD: Đại số" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 transition-all outline-none text-sm">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('subjectName')}</label>
+                            <input type="text" name="name" placeholder="${t('subjectPh')}" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 transition-all outline-none text-sm">
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Số tín chỉ</label>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('credits')}</label>
                             <select name="credits" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
                                 <option value="1">1 TC</option>
                                 <option value="2">2 TC</option>
@@ -374,7 +446,7 @@
                             </select>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Tỷ trọng</label>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('ratio')}</label>
                             <select name="ratio" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
                                 <option value="0.3-0.7">30% - 70%</option>
                                 <option value="0.4-0.6">40% - 60%</option>
@@ -382,11 +454,11 @@
                             </select>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Điểm QT</label>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('midterm')}</label>
                             <input type="number" name="midterm" step="0.1" min="0" max="10" required placeholder="0-10" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Điểm CK</label>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('final')}</label>
                             <input type="number" name="final" step="0.1" min="0" max="10" required placeholder="0-10" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
                         </div>
                         <div class="md:col-span-1 flex items-end">
@@ -400,11 +472,11 @@
                 <section class="space-y-4">
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-semibold text-gray-700 flex items-center">
-                            <i data-lucide="book-open" class="w-5 h-5 mr-2 text-red-600"></i> Danh sách môn
+                            <i data-lucide="book-open" class="w-5 h-5 mr-2 text-red-600"></i> ${t('subjectList')}
                         </h2>
                         ${state.subjects.length > 0 ? `
                             <button onclick="clearSubjects()" class="text-xs text-red-500 hover:text-red-700 flex items-center bg-red-50 px-3 py-1.5 rounded-full">
-                                <i data-lucide="rotate-ccw" class="w-3 h-3 mr-1"></i> Xóa hết
+                                <i data-lucide="rotate-ccw" class="w-3 h-3 mr-1"></i> ${t('clearAll')}
                             </button>
                         ` : ''}
                     </div>
@@ -414,7 +486,7 @@
                             <div class="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <i data-lucide="graduation-cap" class="w-8 h-8 text-gray-400"></i>
                             </div>
-                            <p class="text-gray-500">Nhập điểm quá trình và cuối kỳ để tính GPA.</p>
+                            <p class="text-gray-500">${t('emptyList')}</p>
                         </div>
                     ` : renderSubjectsList()}
                 </section>
@@ -444,9 +516,9 @@
                                     ` : ''}
                                 </div>
                                 <div class="flex items-center gap-4 justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0">
-                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">Hệ 10</div><div class="font-bold text-gray-700">${result.score10}</div></div>
-                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">Chữ</div><div class="font-bold text-xl ${result.grade.color}">${result.grade.letter}</div></div>
-                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">Hệ 4</div><div class="font-bold text-gray-700">${result.grade.gpa}</div></div>
+                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">${t('scale10')}</div><div class="font-bold text-gray-700">${result.score10}</div></div>
+                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">${t('letter')}</div><div class="font-bold text-xl ${result.grade.color}">${result.grade.letter}</div></div>
+                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">${t('scale4')}</div><div class="font-bold text-gray-700">${result.grade.gpa}</div></div>
                                     <button onclick="deleteSubject(${sub.id})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
                                 </div>
                             </div>
@@ -462,28 +534,28 @@
             let html = `
                 <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
-                        <i data-lucide="bar-chart-3" class="w-5 h-5 mr-2 text-red-600"></i> Nhập điểm từng kỳ
+                        <i data-lucide="bar-chart-3" class="w-5 h-5 mr-2 text-red-600"></i> ${t('enterSemester')}
                     </h2>
                     <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4 text-sm text-blue-800 flex items-start">
                         <i data-lucide="alert-circle" class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0"></i>
-                        Nhập GPA (hệ 4) và Tổng số tín chỉ của từng kỳ học để tính CPA tích lũy chung.
+                        ${t('semesterInfo')}
                     </div>
                     <form onsubmit="handleAddSemester(event)" class="grid grid-cols-1 md:grid-cols-12 gap-4">
                         <div class="md:col-span-4">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Tên kỳ học</label>
-                            <input type="text" name="name" placeholder="VD: 2023.1" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('semesterName')}</label>
+                            <input type="text" name="name" placeholder="${t('semesterPh')}" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
                         </div>
                         <div class="md:col-span-3">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Số TC của kỳ</label>
-                            <input type="number" name="credits" step="1" min="1" required placeholder="VD: 18" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('semCredits')}</label>
+                            <input type="number" name="credits" step="1" min="1" required placeholder="${t('semCreditsPh')}" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
                         </div>
                         <div class="md:col-span-3">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">GPA (Hệ 4)</label>
-                            <input type="number" name="gpa" step="0.01" min="0" max="4" required placeholder="VD: 3.25" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">${t('gpa4')}</label>
+                            <input type="number" name="gpa" step="0.01" min="0" max="4" required placeholder="${t('gpa4Ph')}" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
                         </div>
                         <div class="md:col-span-2 flex items-end">
                             <button type="submit" class="w-full p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center">
-                                <i data-lucide="plus" class="w-5 h-5"></i> Thêm
+                                <i data-lucide="plus" class="w-5 h-5"></i> ${t('add')}
                             </button>
                         </div>
                     </form>
@@ -492,7 +564,7 @@
                 <section class="space-y-4">
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-semibold text-gray-700 flex items-center">
-                            <i data-lucide="layers" class="w-5 h-5 mr-2 text-red-600"></i> Danh sách các kỳ
+                            <i data-lucide="layers" class="w-5 h-5 mr-2 text-red-600"></i> ${t('semesterList')}
                         </h2>
                         ${state.semesters.length > 0 ? `
                             <button onclick="clearSemesters()" class="text-xs text-red-500 hover:text-red-700 flex items-center bg-red-50 px-3 py-1.5 rounded-full">
@@ -506,7 +578,7 @@
                             <div class="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <i data-lucide="bar-chart-3" class="w-8 h-8 text-gray-400"></i>
                             </div>
-                            <p class="text-gray-500">Chưa có dữ liệu kỳ học nào.</p>
+                            <p class="text-gray-500">${t('emptySemester')}</p>
                         </div>
                     ` : renderSemestersList()}
                 </section>
@@ -524,12 +596,12 @@
                             <div>
                                 <h3 class="font-bold text-gray-800">${sem.name}</h3>
                                 <div class="text-sm text-gray-500 mt-1">
-                                    Số tín chỉ: <span class="font-medium text-gray-700">${sem.credits}</span>
+                                    ${t('semCreditsLabel')}: <span class="font-medium text-gray-700">${sem.credits}</span>
                                 </div>
                             </div>
                             <div class="flex items-center gap-6">
                                 <div class="text-right">
-                                    <div class="text-xs text-gray-400 uppercase">GPA Kỳ</div>
+                                    <div class="text-xs text-gray-400 uppercase">${t('gpaSemester')}</div>
                                     <div class="text-xl font-bold text-blue-600">${parseFloat(sem.gpa).toFixed(2)}</div>
                                 </div>
                                 <button onclick="deleteSemester(${sem.id})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
@@ -570,9 +642,11 @@
             // Init Icons
             lucide.createIcons();
 
-            // Update Tab Styles
+            // Update Tab Styles + Labels
             const tabDetail = document.getElementById('tab-detail');
             const tabCumulative = document.getElementById('tab-cumulative');
+            tabDetail.innerHTML = `<i data-lucide="book-open" class="w-4 h-4 mr-2"></i> ${t('tabDetail')}`;
+            tabCumulative.innerHTML = `<i data-lucide="layers" class="w-4 h-4 mr-2"></i> ${t('tabCumulative')}`;
 
             if (state.activeTab === 'detail') {
                 tabDetail.className = "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center bg-white text-red-700 shadow-sm";
@@ -581,12 +655,22 @@
                 tabDetail.className = "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center text-red-100 hover:bg-white/10";
                 tabCumulative.className = "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center bg-white text-red-700 shadow-sm";
             }
+
+            // Re-init icons after tab label update
+            lucide.createIcons();
         }
 
         // --- EVENT HANDLERS ---
 
         function switchTab(tab) {
             state.activeTab = tab;
+            renderApp();
+        }
+
+        function toggleLanguage() {
+            state.language = state.language === 'vi' ? 'en' : 'vi';
+            document.getElementById('lang-flag').textContent = state.language === 'vi' ? '🇻🇳' : '🇬🇧';
+            document.getElementById('lang-label').textContent = state.language === 'vi' ? 'VI' : 'EN';
             renderApp();
         }
 
@@ -615,7 +699,7 @@
             const form = e.target;
             const newSub = {
                 id: Date.now(),
-                name: form.name.value || `Môn ${state.subjects.length + 1}`,
+                name: form.name.value || `${t('defaultSubject')} ${state.subjects.length + 1}`,
                 credits: parseInt(form.credits.value),
                 ratio: form.ratio.value,
                 midterm: form.midterm.value,
@@ -645,7 +729,7 @@
             const form = e.target;
             const newSem = {
                 id: Date.now(),
-                name: form.name.value || `Kỳ ${state.semesters.length + 1}`,
+                name: form.name.value || `${t('defaultSemester')} ${state.semesters.length + 1}`,
                 credits: form.credits.value,
                 gpa: form.gpa.value
             };
