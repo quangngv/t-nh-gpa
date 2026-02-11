@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tính điểm GPA HUST</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Ẩn thanh cuộn cho input number nhưng vẫn nhập được */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-slate-800 min-h-screen pb-32 relative">
+
+    <div id="app">
+        <!-- Header sẽ được render tại đây -->
+        <header class="bg-gradient-to-r from-red-700 to-red-900 text-white shadow-lg sticky top-0 z-20">
+            <div class="max-w-4xl mx-auto px-4 py-3">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h1 class="text-xl font-bold leading-tight flex items-center">
+                            <img src="logo.png" alt="HUST Logo" class="h-16 w-auto mr-2">
+                            Tính điểm HUST
+                        </h1>
+                        <p class="text-xs text-red-100 opacity-90">
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&emsp;Công cụ hỗ trợ sinh viên Bách
+                            Khoa</p>
+                    </div>
+
+                    <!-- Quick Stats Display -->
+                    <div class="text-right hidden sm:block" id="header-stats">
+                        <!-- Stats injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="flex space-x-1 bg-red-900/30 p-1 rounded-lg">
+                    <button onclick="switchTab('detail')" id="tab-detail"
+                        class="flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center bg-white text-red-700 shadow-sm">
+                        <i data-lucide="book-open" class="w-4 h-4 mr-2"></i> Tính từng môn
+                    </button>
+                    <button onclick="switchTab('cumulative')" id="tab-cumulative"
+                        class="flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center text-red-100 hover:bg-white/10">
+                        <i data-lucide="layers" class="w-4 h-4 mr-2"></i> Tính CPA các kỳ
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto px-4 py-6 space-y-6" id="main-content">
+            <!-- Nội dung chính sẽ được render bởi JS -->
+        </main>
+
+        <!-- Footer Summary -->
+        <div id="footer-summary"
+            class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 z-30 hidden">
+            <!-- Footer stats injected by JS -->
+        </div>
+    </div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        const state = {
+            activeTab: 'detail', // 'detail' | 'cumulative'
+            detailMode: 'list', // 'single' | 'list'
+
+            // Data for Single Mode (Tính Nhanh)
+            quickSubject: { credits: 3, midterm: '', final: '', ratio: '0.3-0.7' },
+
+            // Data for List Mode (Tính Nhiều Môn)
+            subjects: [],
+
+            // Data for Cumulative Mode (CPA Các Kỳ)
+            semesters: []
+        };
+
+        // --- UTILS & LOGIC ---
+
+        function getGrade(score, isFailed) {
+            if (isFailed) return { letter: 'F', gpa: 0.0, color: 'text-red-600', text: 'Trượt môn' };
+            if (score >= 9.5) return { letter: 'A+', gpa: 4.0, color: 'text-green-600', text: 'Xuất sắc' };
+            if (score >= 8.5) return { letter: 'A', gpa: 4.0, color: 'text-green-600', text: 'Giỏi' };
+            if (score >= 8.0) return { letter: 'B+', gpa: 3.5, color: 'text-blue-600', text: 'Khá giỏi' };
+            if (score >= 7.0) return { letter: 'B', gpa: 3.0, color: 'text-blue-600', text: 'Khá' };
+            if (score >= 6.5) return { letter: 'C+', gpa: 2.5, color: 'text-yellow-600', text: 'Trung bình khá' };
+            if (score >= 5.5) return { letter: 'C', gpa: 2.0, color: 'text-yellow-600', text: 'Trung bình' };
+            if (score >= 5.0) return { letter: 'D+', gpa: 1.5, color: 'text-orange-600', text: 'Trung bình yếu' };
+            if (score >= 4.0) return { letter: 'D', gpa: 1.0, color: 'text-orange-600', text: 'Trung bình yếu' };
+            return { letter: 'F', gpa: 0.0, color: 'text-red-600', text: 'Trượt môn' };
+        }
+
+        function calculateSubjectResult(sub) {
+            const mid = parseFloat(sub.midterm);
+            const fin = parseFloat(sub.final);
+            const parts = sub.ratio.split('-');
+            const midRatio = parseFloat(parts[0]);
+            const finRatio = parseFloat(parts[1]);
+
+            if (isNaN(mid) || isNaN(fin)) return null;
+
+            const score10 = (mid * midRatio) + (fin * finRatio);
+
+            // Logic điểm liệt: Tổng < 4 HOẶC Quá trình < 3 HOẶC Cuối kỳ < 3
+            let failReason = '';
+            if (mid < 3.0) failReason = 'Điểm QT < 3';
+            else if (fin < 3.0) failReason = 'Điểm CK < 3';
+            else if (score10 < 4.0) failReason = 'Tổng kết < 4';
+
+            const isFailed = !!failReason;
+
+            return {
+                score10: score10.toFixed(2),
+                grade: getGrade(score10, isFailed),
+                isFailed,
+                failReason
+            };
+        }
+
+        function getDetailStats() {
+            return state.subjects.reduce((acc, curr) => {
+                const result = calculateSubjectResult(curr);
+                const credits = parseFloat(curr.credits);
+                if (result && !isNaN(result.grade.gpa)) {
+                    acc.totalCredits += credits;
+                    acc.totalWeightedGPA += result.grade.gpa * credits;
+                    acc.totalScore10 += parseFloat(result.score10) * credits;
+                }
+                return acc;
+            }, { totalCredits: 0, totalWeightedGPA: 0, totalScore10: 0 });
+        }
+
+        function getCumulativeStats() {
+            return state.semesters.reduce((acc, curr) => {
+                const gpa = parseFloat(curr.gpa);
+                const cred = parseFloat(curr.credits);
+                if (!isNaN(gpa) && !isNaN(cred)) {
+                    acc.totalCredits += cred;
+                    acc.totalWeightedScore += gpa * cred;
+                }
+                return acc;
+            }, { totalCredits: 0, totalWeightedScore: 0 });
+        }
+
+        // --- RENDER FUNCTIONS ---
+
+        function renderHeaderStats() {
+            const container = document.getElementById('header-stats');
+            let html = '';
+
+            if (state.activeTab === 'detail') {
+                if (state.detailMode === 'list') {
+                    const stats = getDetailStats();
+                    const gpa4 = stats.totalCredits ? (stats.totalWeightedGPA / stats.totalCredits).toFixed(2) : '0.00';
+                    html = `
+                        <div class="text-2xl font-bold">${gpa4} <span class="text-sm font-normal text-red-200">/ 4.0</span></div>
+                        <div class="text-xs text-red-200">GPA Dự kiến</div>
+                    `;
+                } else {
+                    html = `
+                        <div class="text-xl font-bold text-red-100">Tính Nhanh</div>
+                        <div class="text-xs text-red-200">Kiểm tra 1 môn</div>
+                    `;
+                }
+            } else {
+                const stats = getCumulativeStats();
+                const cpa = stats.totalCredits ? (stats.totalWeightedScore / stats.totalCredits).toFixed(2) : '0.00';
+                html = `
+                    <div class="text-2xl font-bold">${cpa} <span class="text-sm font-normal text-red-200">/ 4.0</span></div>
+                    <div class="text-xs text-red-200">CPA Tích lũy</div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function renderFooter() {
+            const container = document.getElementById('footer-summary');
+            const shouldShow = state.activeTab === 'cumulative' || (state.activeTab === 'detail' && state.detailMode === 'list');
+
+            if (!shouldShow) {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+
+            let html = '<div class="max-w-4xl mx-auto flex justify-between items-center">';
+
+            if (state.activeTab === 'detail') {
+                const stats = getDetailStats();
+                const gpa4 = stats.totalCredits ? (stats.totalWeightedGPA / stats.totalCredits).toFixed(2) : '0.00';
+                const cpa10 = stats.totalCredits ? (stats.totalScore10 / stats.totalCredits).toFixed(2) : '0.00';
+
+                html += `
+                    <div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Tổng Tín Chỉ</div>
+                        <div class="text-xl font-bold text-gray-800">${stats.totalCredits}</div>
+                    </div>
+                    <div class="flex gap-6 sm:gap-12">
+                        <div class="text-right">
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">CPA (Hệ 10)</div>
+                            <div class="text-xl font-bold text-gray-700">${cpa10}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">GPA (Hệ 4)</div>
+                            <div class="text-2xl font-black text-red-700">${gpa4}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const stats = getCumulativeStats();
+                const cpa = stats.totalCredits ? (stats.totalWeightedScore / stats.totalCredits).toFixed(2) : '0.00';
+
+                html += `
+                    <div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Tổng Tín Tích Lũy</div>
+                        <div class="text-xl font-bold text-gray-800">${stats.totalCredits}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">CPA Tích Lũy (Hệ 4)</div>
+                        <div class="text-2xl font-black text-red-700">${cpa}</div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderDetailView() {
+            const main = document.getElementById('main-content');
+
+            // Sub-navigation buttons
+            const btnSingleClass = state.detailMode === 'single' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700';
+            const btnListClass = state.detailMode === 'list' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700';
+
+            let html = `
+                <div class="flex justify-center mb-6">
+                    <div class="inline-flex bg-gray-200 p-1 rounded-full relative">
+                        <button onclick="switchDetailMode('single')" class="relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all flex items-center ${btnSingleClass}">
+                            <i data-lucide="zap" class="w-4 h-4 mr-1.5"></i> Tính Nhanh (1 Môn)
+                        </button>
+                        <button onclick="switchDetailMode('list')" class="relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all flex items-center ${btnListClass}">
+                            <i data-lucide="list" class="w-4 h-4 mr-1.5"></i> Tính Học Kỳ (Nhiều Môn)
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            if (state.detailMode === 'single') {
+                html += renderSingleMode();
+            } else {
+                html += renderListMode();
+            }
+
+            html += renderCreditFooter();
+            main.innerHTML = html;
+
+            // Re-bind listeners for Single Mode inputs
+            if (state.detailMode === 'single') bindSingleModeListeners();
+        }
+
+        function renderSingleMode() {
+            const { quickSubject } = state;
+
+            return `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                        <i data-lucide="zap" class="w-5 h-5 mr-2 text-yellow-500"></i> Nhập điểm kiểm tra
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Tỷ trọng</label>
+                            <select id="q-ratio" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                                <option value="0.3-0.7" ${quickSubject.ratio === '0.3-0.7' ? 'selected' : ''}>30% - 70%</option>
+                                <option value="0.4-0.6" ${quickSubject.ratio === '0.4-0.6' ? 'selected' : ''}>40% - 60%</option>
+                                <option value="0.5-0.5" ${quickSubject.ratio === '0.5-0.5' ? 'selected' : ''}>50% - 50%</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Điểm QT</label>
+                                <input type="number" id="q-midterm" step="0.1" min="0" max="10" placeholder="0-10" value="${quickSubject.midterm}"
+                                    class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm font-bold text-gray-700">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Điểm CK</label>
+                                <input type="number" id="q-final" step="0.1" min="0" max="10" placeholder="0-10" value="${quickSubject.final}"
+                                    class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm font-bold text-gray-700">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="quick-result-card" class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col justify-center">
+                    ${renderQuickResultCard()}
+                </section>
+            </div>
+            `;
+        }
+
+        function renderQuickResultCard() {
+            const result = calculateSubjectResult(state.quickSubject);
+
+            if (result) {
+                return `
+                    <div class="text-center">
+                        <h3 class="text-gray-500 text-sm uppercase tracking-wider mb-2">Kết quả dự tính</h3>
+                        
+                        <div class="inline-flex flex-col items-center justify-center w-32 h-32 rounded-full border-4 mb-4 ${result.isFailed ? 'border-red-100 bg-red-50' : 'border-green-100 bg-green-50'}">
+                            <span class="text-4xl font-black ${result.grade.color}">${result.grade.letter}</span>
+                            <span class="text-xs text-gray-500 font-medium mt-1">GPA: ${result.grade.gpa}</span>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="text-xl font-bold ${result.isFailed ? 'text-red-600' : 'text-green-600'}">
+                                ${result.grade.text}
+                            </div>
+                            ${result.isFailed ? `
+                                <div class="inline-flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
+                                    <i data-lucide="alert-circle" class="w-3 h-3 mr-1"></i> ${result.failReason}
+                                </div>
+                            ` : `
+                                <div class="text-gray-500 text-sm">Điểm hệ 10: <span class="font-bold text-gray-800">${result.score10}</span></div>
+                            `}
+                        </div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="text-center text-gray-400 py-8">
+                        <i data-lucide="zap" class="w-12 h-12 mx-auto mb-2 opacity-20"></i>
+                        <p>Nhập điểm quá trình và cuối kỳ để xem kết quả ngay lập tức.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderListMode() {
+            let html = `
+                <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                        <i data-lucide="plus" class="w-5 h-5 mr-2 text-red-600"></i> Thêm môn vào danh sách
+                    </h2>
+                    <form onsubmit="handleAddSubject(event)" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Tên môn học</label>
+                            <input type="text" name="name" placeholder="VD: Đại số" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 transition-all outline-none text-sm">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Số tín chỉ</label>
+                            <select name="credits" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                                <option value="1">1 TC</option>
+                                <option value="2">2 TC</option>
+                                <option value="3" selected>3 TC</option>
+                                <option value="4">4 TC</option>
+                                <option value="5">5 TC</option>
+                                <option value="6">6 TC</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Tỷ trọng</label>
+                            <select name="ratio" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                                <option value="0.3-0.7">30% - 70%</option>
+                                <option value="0.4-0.6">40% - 60%</option>
+                                <option value="0.5-0.5">50% - 50%</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Điểm QT</label>
+                            <input type="number" name="midterm" step="0.1" min="0" max="10" required placeholder="0-10" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Điểm CK</label>
+                            <input type="number" name="final" step="0.1" min="0" max="10" required placeholder="0-10" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                        </div>
+                        <div class="md:col-span-1 flex items-end">
+                            <button type="submit" class="w-full p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center">
+                                <i data-lucide="plus" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-gray-700 flex items-center">
+                            <i data-lucide="book-open" class="w-5 h-5 mr-2 text-red-600"></i> Danh sách môn
+                        </h2>
+                        ${state.subjects.length > 0 ? `
+                            <button onclick="clearSubjects()" class="text-xs text-red-500 hover:text-red-700 flex items-center bg-red-50 px-3 py-1.5 rounded-full">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3 mr-1"></i> Xóa hết
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    ${state.subjects.length === 0 ? `
+                        <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                            <div class="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <i data-lucide="graduation-cap" class="w-8 h-8 text-gray-400"></i>
+                            </div>
+                            <p class="text-gray-500">Nhập điểm quá trình và cuối kỳ để tính GPA.</p>
+                        </div>
+                    ` : renderSubjectsList()}
+                </section>
+            `;
+            return html;
+        }
+
+        function renderSubjectsList() {
+            return `
+                <div class="grid gap-4">
+                    ${state.subjects.map(sub => {
+                const result = calculateSubjectResult(sub);
+                if (!result) return '';
+                return `
+                            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 ${result.isFailed ? 'border-l-red-500' : 'border-l-green-500'} flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div class="flex-1">
+                                    <h3 class="font-bold text-gray-800 text-lg">${sub.name}</h3>
+                                    <div class="flex flex-wrap gap-2 mt-1 text-sm text-gray-500">
+                                        <span class="bg-gray-100 px-2 py-0.5 rounded text-xs">${sub.credits} TC</span>
+                                        <span class="bg-gray-100 px-2 py-0.5 rounded text-xs">${sub.ratio.replace('-', '/')}</span>
+                                        <span>QT: <b>${sub.midterm}</b> - CK: <b>${sub.final}</b></span>
+                                    </div>
+                                    ${result.isFailed ? `
+                                        <div class="mt-2 text-xs font-semibold text-red-600 flex items-center bg-red-50 w-fit px-2 py-1 rounded">
+                                            <i data-lucide="alert-circle" class="w-3 h-3 mr-1"></i> ${result.failReason}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <div class="flex items-center gap-4 justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0">
+                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">Hệ 10</div><div class="font-bold text-gray-700">${result.score10}</div></div>
+                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">Chữ</div><div class="font-bold text-xl ${result.grade.color}">${result.grade.letter}</div></div>
+                                    <div class="text-center min-w-[50px]"><div class="text-xs text-gray-400">Hệ 4</div><div class="font-bold text-gray-700">${result.grade.gpa}</div></div>
+                                    <button onclick="deleteSubject(${sub.id})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                                </div>
+                            </div>
+                        `;
+            }).join('')}
+                </div>
+            `;
+        }
+
+        function renderCumulativeView() {
+            const main = document.getElementById('main-content');
+
+            let html = `
+                <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5 mr-2 text-red-600"></i> Nhập điểm từng kỳ
+                    </h2>
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4 text-sm text-blue-800 flex items-start">
+                        <i data-lucide="alert-circle" class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0"></i>
+                        Nhập GPA (hệ 4) và Tổng số tín chỉ của từng kỳ học để tính CPA tích lũy chung.
+                    </div>
+                    <form onsubmit="handleAddSemester(event)" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div class="md:col-span-4">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Tên kỳ học</label>
+                            <input type="text" name="name" placeholder="VD: 2023.1" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Số TC của kỳ</label>
+                            <input type="number" name="credits" step="1" min="1" required placeholder="VD: 18" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">GPA (Hệ 4)</label>
+                            <input type="number" name="gpa" step="0.01" min="0" max="4" required placeholder="VD: 3.25" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm">
+                        </div>
+                        <div class="md:col-span-2 flex items-end">
+                            <button type="submit" class="w-full p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center">
+                                <i data-lucide="plus" class="w-5 h-5"></i> Thêm
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-gray-700 flex items-center">
+                            <i data-lucide="layers" class="w-5 h-5 mr-2 text-red-600"></i> Danh sách các kỳ
+                        </h2>
+                        ${state.semesters.length > 0 ? `
+                            <button onclick="clearSemesters()" class="text-xs text-red-500 hover:text-red-700 flex items-center bg-red-50 px-3 py-1.5 rounded-full">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3 mr-1"></i> Xóa hết
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    ${state.semesters.length === 0 ? `
+                        <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                            <div class="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <i data-lucide="bar-chart-3" class="w-8 h-8 text-gray-400"></i>
+                            </div>
+                            <p class="text-gray-500">Chưa có dữ liệu kỳ học nào.</p>
+                        </div>
+                    ` : renderSemestersList()}
+                </section>
+            `;
+
+            html += renderCreditFooter();
+            main.innerHTML = html;
+        }
+
+        function renderSemestersList() {
+            return `
+                <div class="grid gap-3">
+                    ${state.semesters.map(sem => `
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h3 class="font-bold text-gray-800">${sem.name}</h3>
+                                <div class="text-sm text-gray-500 mt-1">
+                                    Số tín chỉ: <span class="font-medium text-gray-700">${sem.credits}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-6">
+                                <div class="text-right">
+                                    <div class="text-xs text-gray-400 uppercase">GPA Kỳ</div>
+                                    <div class="text-xl font-bold text-blue-600">${parseFloat(sem.gpa).toFixed(2)}</div>
+                                </div>
+                                <button onclick="deleteSemester(${sem.id})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderCreditFooter() {
+            const year = new Date().getFullYear();
+            return `
+                <footer class="pt-8 text-center pb-20">
+                    <p class="text-sm text-gray-400 flex items-center justify-center">
+                        &copy; ${year} Developed by <span class="font-bold text-red-700 ml-1">Soumek Xaynguyen</span>
+                    </p>
+                </footer>
+            `;
+        }
+
+        function renderApp() {
+            // Render Header Stats
+            renderHeaderStats();
+
+            // Render Main Content
+            if (state.activeTab === 'detail') {
+                renderDetailView();
+            } else {
+                renderCumulativeView();
+            }
+
+            // Render Footer
+            renderFooter();
+
+            // Init Icons
+            lucide.createIcons();
+
+            // Update Tab Styles
+            const tabDetail = document.getElementById('tab-detail');
+            const tabCumulative = document.getElementById('tab-cumulative');
+
+            if (state.activeTab === 'detail') {
+                tabDetail.className = "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center bg-white text-red-700 shadow-sm";
+                tabCumulative.className = "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center text-red-100 hover:bg-white/10";
+            } else {
+                tabDetail.className = "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center text-red-100 hover:bg-white/10";
+                tabCumulative.className = "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center bg-white text-red-700 shadow-sm";
+            }
+        }
+
+        // --- EVENT HANDLERS ---
+
+        function switchTab(tab) {
+            state.activeTab = tab;
+            renderApp();
+        }
+
+        function switchDetailMode(mode) {
+            state.detailMode = mode;
+            renderApp();
+        }
+
+        // Single Mode Events
+        function bindSingleModeListeners() {
+            document.getElementById('q-ratio').addEventListener('change', (e) => updateQuickSubject('ratio', e.target.value));
+            document.getElementById('q-midterm').addEventListener('input', (e) => updateQuickSubject('midterm', e.target.value));
+            document.getElementById('q-final').addEventListener('input', (e) => updateQuickSubject('final', e.target.value));
+        }
+
+        function updateQuickSubject(key, value) {
+            state.quickSubject[key] = value;
+            // Only re-render the card, not the inputs to avoid focus loss
+            document.getElementById('quick-result-card').innerHTML = renderQuickResultCard();
+            lucide.createIcons();
+        }
+
+        // List Mode Events
+        function handleAddSubject(e) {
+            e.preventDefault();
+            const form = e.target;
+            const newSub = {
+                id: Date.now(),
+                name: form.name.value || `Môn ${state.subjects.length + 1}`,
+                credits: parseInt(form.credits.value),
+                ratio: form.ratio.value,
+                midterm: form.midterm.value,
+                final: form.final.value
+            };
+
+            state.subjects.push(newSub);
+            form.reset();
+            form.credits.value = "3"; // Default reset
+            form.ratio.value = "0.3-0.7"; // Default reset
+            renderApp();
+        }
+
+        function deleteSubject(id) {
+            state.subjects = state.subjects.filter(s => s.id !== id);
+            renderApp();
+        }
+
+        function clearSubjects() {
+            state.subjects = [];
+            renderApp();
+        }
+
+        // Cumulative Mode Events
+        function handleAddSemester(e) {
+            e.preventDefault();
+            const form = e.target;
+            const newSem = {
+                id: Date.now(),
+                name: form.name.value || `Kỳ ${state.semesters.length + 1}`,
+                credits: form.credits.value,
+                gpa: form.gpa.value
+            };
+
+            state.semesters.push(newSem);
+            form.reset();
+            renderApp();
+        }
+
+        function deleteSemester(id) {
+            state.semesters = state.semesters.filter(s => s.id !== id);
+            renderApp();
+        }
+
+        function clearSemesters() {
+            state.semesters = [];
+            renderApp();
+        }
+
+        // Initial Render
+        renderApp();
+
+    </script>
+</body>
+
+</html>
