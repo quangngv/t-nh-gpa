@@ -184,7 +184,14 @@
 
             if (isNaN(mid) || isNaN(fin)) return null;
 
-            const score10 = (mid * midRatio) + (fin * finRatio);
+            let score10 = (mid * midRatio) + (fin * finRatio);
+
+            // Làm tròn 2 chữ số thập phân trước để tránh lỗi floating point
+            score10 = Math.round(score10 * 100) / 100;
+
+            // Làm tròn lên nếu phần thập phân >= 0.95 (VD: 3.95 → 4, 8.95 → 9)
+            const decimal = score10 - Math.floor(score10);
+            if (decimal >= 0.95) score10 = Math.ceil(score10);
 
             // Logic điểm liệt: Tổng < 4 HOẶC Quá trình < 3 HOẶC Cuối kỳ < 3
             let failReason = '';
@@ -687,6 +694,15 @@
         }
 
         function updateQuickSubject(key, value) {
+            // Giới hạn điểm nhập tối đa là 10, tối thiểu là 0
+            if (key === 'midterm' || key === 'final') {
+                let num = parseFloat(value);
+                if (!isNaN(num)) {
+                    if (num > 10) { num = 10; document.getElementById(key === 'midterm' ? 'q-midterm' : 'q-final').value = 10; }
+                    if (num < 0) { num = 0; document.getElementById(key === 'midterm' ? 'q-midterm' : 'q-final').value = 0; }
+                    value = num.toString();
+                }
+            }
             state.quickSubject[key] = value;
             // Only re-render the card, not the inputs to avoid focus loss
             document.getElementById('quick-result-card').innerHTML = renderQuickResultCard();
